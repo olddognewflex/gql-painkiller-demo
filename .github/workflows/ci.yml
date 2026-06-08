@@ -1,0 +1,50 @@
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  build:
+    name: Build & typecheck
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Set up Node
+        uses: actions/setup-node@v6
+        with:
+          node-version: "20"
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Generate Prisma client
+        run: npx prisma generate
+
+      - name: Typecheck
+        run: npm run typecheck
+
+  painkiller:
+    name: GraphQL Painkiller (report)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Set up Go
+        uses: actions/setup-go@v6
+        with:
+          go-version: "1.22"
+
+      - name: Install GraphQL Painkiller
+        run: go install github.com/olddognewflex/graphql-painkiller/cmd/gql-painkiller@latest
+
+      # main intentionally ships an N+1 operation, so this runs in report mode
+      # (--fail-on none) to surface the findings without failing the build.
+      # The dataloader-fix branch demonstrates the cure.
+      - name: Analyze operations
+        run: gql-painkiller analyze ./operations --fail-on none
