@@ -68,12 +68,30 @@ Then point GraphQL Painkiller at the operations:
 gql-painkiller analyze ./operations
 ```
 
-## The fix (not implemented here, on purpose)
+## The fix (this branch)
 
-In a real service you would batch the relation lookups with
-[DataLoader](https://github.com/graphql/dataloader) or load relations eagerly via Prisma's
-`include`, and add pagination arguments to every list field. GraphQL Painkiller exists to
-flag the operations that need that treatment.
+> 📍 You are on the **`dataloader-fix`** branch. The `main` branch leaves the N+1 in place.
+
+Every relation field now loads through a per-request
+[DataLoader](https://github.com/graphql/dataloader) (see [`src/loaders.ts`](src/loaders.ts))
+instead of issuing its own Prisma query. DataLoader coalesces all the keys requested in a
+single tick into one batched `findMany({ id: { in: [...] } })`, then scatters the rows back
+to each caller.
+
+Same `Feed` query, same data, against the same seed:
+
+| Branch | SQL queries for one `Feed` request |
+|--------|-----------------------------------:|
+| `main` (naive) | **311** |
+| `dataloader-fix` | **4** |
+
+One batched query per relation level, regardless of how many parents are in flight. The
+resolver shape is unchanged — only the data access is batched — and loaders are created
+fresh per request so the cache never leaks across users.
+
+Pagination is still worth adding on top: DataLoader fixes the query *count*, but unbounded
+list fields can still return huge payloads, which is why GraphQL Painkiller continues to
+flag `MISSING_PAGINATION` even on a batched API.
 
 ## Layout
 

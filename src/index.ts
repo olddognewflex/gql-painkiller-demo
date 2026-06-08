@@ -2,12 +2,12 @@ import { ApolloServer } from "@apollo/server";
 import { startStandaloneServer } from "@apollo/server/standalone";
 import { typeDefs } from "./schema.js";
 import { resolvers } from "./resolvers.js";
-import { prisma, type Context } from "./context.js";
+import { createContext, type Context } from "./context.js";
 
 const server = new ApolloServer<Context>({ typeDefs, resolvers });
 
 const { url } = await startStandaloneServer(server, {
-  context: async () => ({ prisma }),
+  context: async () => createContext(),
   listen: { port: Number(process.env.PORT ?? 4000) },
 });
 
