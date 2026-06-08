@@ -1,0 +1,31 @@
+# A new operation a developer might add for an "activity dashboard".
+# It looks innocent, but it walks unbounded lists several levels deep —
+# exactly the shape GraphQL Painkiller flags. Because this file is added
+# in the pull request, the findings anchor as INLINE review comments on
+# the precise lines below.
+query Dashboard {
+  users {
+    id
+    name
+    posts {
+      id
+      title
+      comments {
+        id
+        body
+        author {
+          id
+          name
+        }
+      }
+    }
+    comments {
+      id
+      body
+      post {
+        id
+        title
+      }
+    }
+  }
+}
