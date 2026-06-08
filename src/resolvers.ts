@@ -1,58 +1,48 @@
 import type { Context } from "./context.js";
 
-// ⚠️ DELIBERATELY NAIVE RESOLVERS ⚠️
+// ✅ DATALOADER-BATCHED RESOLVERS ✅
 //
-// Every relation field issues its own Prisma query, per parent object.
-// A query like `users { posts { comments { author { name } } } }` therefore
-// fans out into:
-//   1   query  for the user list
-//   N   queries for each user's posts        (one per user)
-//   N*M queries for each post's comments      (one per post)
-//   N*M*K queries for each comment's author   (one per comment)
+// Same resolver shape as the naive branch, but every relation field now goes
+// through a per-request DataLoader instead of issuing its own Prisma query.
+// DataLoader coalesces all the keys requested in one tick into a single
+// batched `findMany({ id: { in: [...] } })`, so the cascading N+1 collapses.
 //
-// This is the classic GraphQL N+1 problem. The fix is to batch these
-// lookups with DataLoader (or Prisma's relation loading), but here we
-// leave it broken on purpose so GraphQL Painkiller has something to flag.
+// `users { posts { comments { author { posts } } } }` drops from ~300 queries
+// to a small constant — one batched query per relation level.
 
 export const resolvers = {
   Query: {
-    users: (_parent: unknown, _args: unknown, { prisma }: Context) =>
+    users: (_p: unknown, _a: unknown, { prisma }: Context) =>
       prisma.user.findMany(),
 
-    user: (_parent: unknown, args: { id: string }, { prisma }: Context) =>
-      prisma.user.findUnique({ where: { id: Number(args.id) } }),
+    user: (_p: unknown, args: { id: string }, { loaders }: Context) =>
+      loaders.usersById.load(Number(args.id)),
 
-    posts: (_parent: unknown, _args: unknown, { prisma }: Context) =>
+    posts: (_p: unknown, _a: unknown, { prisma }: Context) =>
       prisma.post.findMany(),
   },
 
   User: {
-    // N+1: one query per user.
-    posts: (parent: { id: number }, _args: unknown, { prisma }: Context) =>
-      prisma.post.findMany({ where: { authorId: parent.id } }),
+    posts: (parent: { id: number }, _a: unknown, { loaders }: Context) =>
+      loaders.postsByAuthorId.load(parent.id),
 
-    // N+1: one query per user.
-    comments: (parent: { id: number }, _args: unknown, { prisma }: Context) =>
-      prisma.comment.findMany({ where: { authorId: parent.id } }),
+    comments: (parent: { id: number }, _a: unknown, { loaders }: Context) =>
+      loaders.commentsByAuthorId.load(parent.id),
   },
 
   Post: {
-    // N+1: one query per post.
-    author: (parent: { authorId: number }, _args: unknown, { prisma }: Context) =>
-      prisma.user.findUnique({ where: { id: parent.authorId } }),
+    author: (parent: { authorId: number }, _a: unknown, { loaders }: Context) =>
+      loaders.usersById.load(parent.authorId),
 
-    // N+1: one query per post.
-    comments: (parent: { id: number }, _args: unknown, { prisma }: Context) =>
-      prisma.comment.findMany({ where: { postId: parent.id } }),
+    comments: (parent: { id: number }, _a: unknown, { loaders }: Context) =>
+      loaders.commentsByPostId.load(parent.id),
   },
 
   Comment: {
-    // N+1: one query per comment.
-    author: (parent: { authorId: number }, _args: unknown, { prisma }: Context) =>
-      prisma.user.findUnique({ where: { id: parent.authorId } }),
+    author: (parent: { authorId: number }, _a: unknown, { loaders }: Context) =>
+      loaders.usersById.load(parent.authorId),
 
-    // N+1: one query per comment.
-    post: (parent: { postId: number }, _args: unknown, { prisma }: Context) =>
-      prisma.post.findUnique({ where: { id: parent.postId } }),
+    post: (parent: { postId: number }, _a: unknown, { loaders }: Context) =>
+      loaders.postsById.load(parent.postId),
   },
 };
