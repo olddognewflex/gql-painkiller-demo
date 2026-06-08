@@ -1,0 +1,38 @@
+// Prisma schema for the GraphQL Painkiller demo.
+// Relations are intentionally deep (User -> Post -> Comment -> User)
+// so the naive resolvers in src/resolvers.ts produce cascading N+1 queries.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = "file:./dev.db"
+}
+
+model User {
+  id       Int       @id @default(autoincrement())
+  name     String
+  email    String    @unique
+  posts    Post[]
+  comments Comment[]
+}
+
+model Post {
+  id       Int       @id @default(autoincrement())
+  title    String
+  body     String
+  author   User      @relation(fields: [authorId], references: [id])
+  authorId Int
+  comments Comment[]
+}
+
+model Comment {
+  id       Int    @id @default(autoincrement())
+  body     String
+  post     Post   @relation(fields: [postId], references: [id])
+  postId   Int
+  author   User   @relation(fields: [authorId], references: [id])
+  authorId Int
+}

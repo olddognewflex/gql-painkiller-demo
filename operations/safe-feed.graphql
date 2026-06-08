@@ -1,0 +1,15 @@
+# The same intent, scoped and bounded.
+#
+# Fetch one user, a shallow slice of their posts, no recursive author
+# expansion. This is the shape GraphQL Painkiller is happy with: a
+# single entry point, no unbounded nested lists, no deep traversal.
+query SafeUserPosts($id: ID!) {
+  user(id: $id) {
+    id
+    name
+    posts {
+      id
+      title
+    }
+  }
+}

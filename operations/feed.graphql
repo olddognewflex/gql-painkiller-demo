@@ -1,0 +1,30 @@
+# The N+1 bomb.
+#
+# Against the naive resolvers this query fans out into hundreds of SQL
+# statements: users -> posts (per user) -> comments (per post) ->
+# author (per comment) -> posts (per author) ...
+#
+# GraphQL Painkiller flags the unbounded list nesting and the deep
+# traversal as a high-risk pattern before it ever hits production.
+query Feed {
+  users {
+    id
+    name
+    posts {
+      id
+      title
+      comments {
+        id
+        body
+        author {
+          id
+          name
+          posts {
+            id
+            title
+          }
+        }
+      }
+    }
+  }
+}

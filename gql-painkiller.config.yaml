@@ -1,0 +1,30 @@
+rules:
+    maxDepth: 5
+    maxCollectionSelectionFields: 8
+    requirePagination: true
+    failOnSeverity: high
+paginationArgs:
+    - first
+    - last
+    - limit
+    - take
+    - pageSize
+    - after
+    - before
+    - offset
+collectionFieldPatterns:
+    - items
+    - nodes
+    - edges
+expensiveFieldPatterns:
+    - comments
+    - history
+    - events
+    - logs
+    - charges
+    - payments
+    - inspections
+    - accounts
+    - permissions
+    - audit
+knownResolvers: {}
